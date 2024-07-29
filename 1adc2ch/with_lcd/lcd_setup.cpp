@@ -11,10 +11,16 @@ void delay_ms(int ms) {
   delay_cycles(ms * cycles_for_1ms);
 }
 
+/*---------------------- st7789_lcd def ----------------------*/
 st7789_lcd::st7789_lcd(SPI_Regs *spi_ptr, GPIO_Regs *dc_port, uint32_t dc_pin,
-                       GPIO_Regs *rst_port, uint32_t rst_pin)
+                       GPIO_Regs *rst_port, uint32_t rst_pin,
+                       GPIO_Regs *cs_port, uint32_t cs_pin)
     : LCD_SPI_PTR(spi_ptr), LCD_GPIO_DC_PORT(dc_port), LCD_GPIO_DC_PIN(dc_pin),
-      LCD_GPIO_RST_PORT(rst_port), LCD_GPIO_RST_PIN(rst_pin) {}
+      LCD_GPIO_RST_PORT(rst_port), LCD_GPIO_RST_PIN(rst_pin),
+      LCD_GPIO_CS_PORT(cs_port), LCD_GPIO_CS_PIN(cs_pin) {
+  // 构造函数实现，使用初始化列表
+  DL_GPIO_setPins(GPIO_OUT_PORT, GPIO_OUT_CS_PIN);
+}
 
 void st7789_lcd::reset(void) {
   DL_GPIO_setPins(LCD_GPIO_RST_PORT, LCD_GPIO_RST_PIN);
@@ -25,23 +31,35 @@ void st7789_lcd::reset(void) {
   delay_ms(10);
 }
 
-// 实例化
-st7789_lcd my_st7789(SPI_0_INST, GPIO_OUT_PORT, GPIO_OUT_DC_PIN, GPIO_OUT_PORT,
-                     GPIO_OUT_RST_PIN);
-
-void spi_transmit_byte(uint8_t data) {
-  while (DL_SPI_isBusy(my_st7789.LCD_SPI_PTR))
+void st7789_lcd::spi_transmit_byte(uint8_t data) {
+  while (DL_SPI_isBusy(LCD_SPI_PTR))
     ;
-  DL_SPI_transmitData8(my_st7789.LCD_SPI_PTR, data);
-  while (DL_SPI_isBusy(my_st7789.LCD_SPI_PTR))
+  DL_SPI_transmitData8(LCD_SPI_PTR, data);
+  while (DL_SPI_isBusy(LCD_SPI_PTR))
     ;
 }
 
-void spi_transmit_data(uint8_t *pdata, size_t size) {
+void st7789_lcd::spi_transmit_data(uint8_t *pdata, size_t size) {
+  DL_GPIO_clearPins(GPIO_OUT_PORT, GPIO_OUT_CS_PIN);
   for (int i = 0; i < size; i++) {
     spi_transmit_byte(pdata[i]);
   }
+  DL_GPIO_setPins(GPIO_OUT_PORT, GPIO_OUT_CS_PIN);
 }
+
+void st7789_lcd::dc_low(void) {
+  DL_GPIO_clearPins(LCD_GPIO_DC_PORT, LCD_GPIO_DC_PIN);
+}
+
+void st7789_lcd::dc_high(void) {
+  DL_GPIO_setPins(LCD_GPIO_DC_PORT, LCD_GPIO_DC_PIN);
+}
+
+/*---------------------- st7789_lcd finished ----------------------*/
+
+// 实例化
+st7789_lcd my_st7789(SPI_0_INST, GPIO_OUT_PORT, GPIO_OUT_DC_PIN, GPIO_OUT_PORT,
+                     GPIO_OUT_RST_PIN, GPIO_OUT_PORT, GPIO_OUT_CS_PIN);
 
 void lcd_callback(SpiCmd cmd, uint8_t *pdata, size_t size) {
   //   auto spi = hspi1.Instance;
@@ -59,15 +77,15 @@ void lcd_callback(SpiCmd cmd, uint8_t *pdata, size_t size) {
     break;
 
   case SpiCmd::dc_low:
-    DL_GPIO_clearPins(my_st7789.LCD_GPIO_DC_PORT, my_st7789.LCD_GPIO_DC_PIN);
+    my_st7789.dc_low();
     break;
 
   case SpiCmd::dc_high:
-    DL_GPIO_setPins(my_st7789.LCD_GPIO_DC_PORT, my_st7789.LCD_GPIO_DC_PIN);
+    my_st7789.dc_high();
     break;
 
   case SpiCmd::transmit:
-    spi_transmit_data(pdata, size);
+    my_st7789.spi_transmit_data(pdata, size);
     break;
   case SpiCmd::delay:
     delay_ms(size);
@@ -77,10 +95,12 @@ void lcd_callback(SpiCmd cmd, uint8_t *pdata, size_t size) {
 
 Adafruit_ST7789 lcd(240, 320, lcd_callback);
 
-void setup() {
+void st7789_lcd_setup() {
   // should reset
+  DL_GPIO_setPins(GPIO_OUT_PORT, GPIO_OUT_CS_PIN);
   my_st7789.reset();
   lcd.init(240, 320);
+  // lcd.init(240, 240);
   lcd.setRotation(2);
   // lcd.fillScreen(ST77XX_BLACK);
   lcd.fillScreen(ST77XX_CYAN);

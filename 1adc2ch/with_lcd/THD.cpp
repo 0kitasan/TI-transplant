@@ -18,8 +18,8 @@
  * PB09 - SPI-CLK:
  * PA18 - SPI-MOSI:
  * PA12 - RST:
- * PA31 - DC:  always high
- * PB28 - CS:  always low
+ * PA31 - DC:
+ * PB28 - CS:
  */
 
 char adc0_charbuf[20];
@@ -40,27 +40,27 @@ int main(void) {
   SYSCFG_DL_init();
   NVIC_EnableIRQ(ADC12_0_INST_INT_IRQN);
   delay_ms(1);
-  
+
   timer_cnt_reg = TIMA0->COUNTERREGS.LOAD;
   sprintf(ch_buffer, "%d", timer_cnt_reg);
   printf("timer_cnt_reg=%s\r\n", ch_buffer);
   printf("debug start!\r\n");
   __BKPT(0);
-  setup();
+  st7789_lcd_setup();
   __BKPT(0);
-  adc_get_sample();
-  uint16_t adc0_mv;
-  for (int i = 0; i < ADC_SAMPLE_SIZE; i++) {
-    adc0_mv = adc_voltage_mv_trans(adc0_result[i]);
-    sprintf(adc0_charbuf, "%d", adc0_mv);
-    if (i % 2 == 0) {
-      sprintf(ch_buffer, "%d", i / 2);
-      printf("%s:\t ADC0_CH1_RES=%s,\t", ch_buffer, adc0_charbuf);
-    } else {
-      printf("ADC0_CH2_RES=%s\r\n", adc0_charbuf);
+    adc_get_sample();
+    uint16_t adc0_mv;
+    for (int i = 0; i < ADC_SAMPLE_SIZE; i++) {
+      adc0_mv = adc_voltage_mv_trans(adc0_result[i]);
+      sprintf(adc0_charbuf, "%d", adc0_mv);
+      if (i % 2 == 0) {
+        sprintf(ch_buffer, "%d", i / 2);
+        printf("%s:\t ADC0_CH1_RES=%s,\t", ch_buffer, adc0_charbuf);
+      } else {
+        printf("ADC0_CH2_RES=%s\r\n", adc0_charbuf);
+      }
     }
-  }
-  __BKPT(0);
+    __BKPT(0);
   while (1) {
   }
 }

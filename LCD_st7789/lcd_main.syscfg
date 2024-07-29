@@ -18,22 +18,24 @@ const SYSCTL = scripting.addModule("/ti/driverlib/SYSCTL");
  * Write custom configuration values to the imported modules.
  */
 GPIO1.$name                          = "GPIO_OUT";
+GPIO1.port                           = "PORTB";
 GPIO1.associatedPins.create(3);
 GPIO1.associatedPins[0].$name        = "CS";
-GPIO1.associatedPins[0].pin.$assign  = "PA15";
+GPIO1.associatedPins[0].pin.$assign  = "PB20";
 GPIO1.associatedPins[1].$name        = "RST";
 GPIO1.associatedPins[1].initialValue = "SET";
-GPIO1.associatedPins[1].pin.$assign  = "PA24";
+GPIO1.associatedPins[1].pin.$assign  = "PB1";
 GPIO1.associatedPins[2].$name        = "DC";
 GPIO1.associatedPins[2].initialValue = "SET";
-GPIO1.associatedPins[2].pin.$assign  = "PA17";
+GPIO1.associatedPins[2].pin.$assign  = "PB13";
 
 const Board = scripting.addModule("/ti/driverlib/Board", {}, false);
 
 SPI1.$name                      = "SPI_0";
+SPI1.spiClkDiv                  = "2";
 SPI1.calculatedBitRate          = 1;
-SPI1.peripheral.sclkPin.$assign = "PB9";
-SPI1.peripheral.mosiPin.$assign = "PA18";
+SPI1.peripheral.sclkPin.$assign = "PB16";
+SPI1.peripheral.mosiPin.$assign = "PB8";
 SPI1.sclkPinConfig.$name        = "ti_driverlib_gpio_GPIOPinGeneric0";
 SPI1.mosiPinConfig.$name        = "ti_driverlib_gpio_GPIOPinGeneric1";
 SPI1.misoPinConfig.$name        = "ti_driverlib_gpio_GPIOPinGeneric2";
