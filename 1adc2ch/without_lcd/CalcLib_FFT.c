@@ -1,6 +1,10 @@
 // CalcLib_FFT.c
 #include "CalcLib_FFT.h"
+#include "arm_const_structs.h"
+#include "arm_math.h"
+#include "cmsis_gcc.h"
 #include <math.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -13,6 +17,98 @@ int findMaxIndexInRange(uint32_t *arr_input, int start, int end) {
   }
   printf("test\r\n");
   return maxIndex;
+}
+
+// int findMaxAbsIndexInRange(int32_t *arr_input, int start, int end) {
+//   int maxIndex = start;
+//   int32_t maxAbsValue = abs(arr_input[start]);
+
+//   for (int i = start + 1; i <= end; i++) {
+//     int32_t currentAbsValue = abs(arr_input[i]);
+//     if (currentAbsValue > maxAbsValue) {
+//       maxAbsValue = currentAbsValue;
+//       maxIndex = i;
+//     }
+//   }
+//   return maxIndex;
+// }
+
+// 通用格式化打印函数
+void formatted_print(const char *format, ...) {
+  char buffer[256]; // 假设最大格式化字符串长度为 256
+  va_list args;
+  va_start(args, format);
+  vsnprintf(buffer, sizeof(buffer), format, args);
+  va_end(args);
+  printf("%s", buffer);
+}
+
+void fft_calc1024_magnitude(const float *input_signal,
+                            float *output_magnitude) {
+  // 我们只关心频率的幅度
+  static const int FFT_LENGTH = 1024; // 定义FFT的长度为静态变量
+  // 有效频率分量数量，第0个值是直流分量，所以要+1
+  static const int HALF_LENGTH = FFT_LENGTH / 2 + 1;
+  float fft_inputbuf[FFT_LENGTH * 2]; // FFT输入数组，包含实部和虚部
+  // 生成FFT输入数组
+  for (int i = 0; i < FFT_LENGTH; i++) {
+    fft_inputbuf[2 * i] = input_signal[i]; // 实部
+    fft_inputbuf[2 * i + 1] = 0;           // 虚部
+  }
+  // 执行FFT
+  arm_cfft_f32(&arm_cfft_sR_f32_len1024, fft_inputbuf, 0, 1);
+  // 计算幅度，前 HALF_LENGTH 个是有效的
+  arm_cmplx_mag_f32(fft_inputbuf, output_magnitude, HALF_LENGTH);
+}
+
+void fft_calc1024_magnitude_test(void) {
+  static const int FFT_LENGTH = 1024;
+  static const int FFT_HALF_LENGTH = FFT_LENGTH / 2 + 1;
+  static char ch_buffer[50];
+  float fft_inputbuf_real[FFT_LENGTH];       // FFT 输入数组
+  float fft_outputbuf_real[FFT_HALF_LENGTH]; // FFT 输出数组（频域）
+
+  // 生成信号序列
+  for (int i = 0; i < FFT_LENGTH; i++) {
+    fft_inputbuf_real[i] = 100 + 10 * arm_sin_f32(2 * PI * i * 1 / FFT_LENGTH) +
+                           20 * arm_sin_f32(2 * PI * i * 50 / FFT_LENGTH) +
+                           30 * arm_cos_f32(2 * PI * i * 300 / FFT_LENGTH);
+  }
+  fft_calc1024_magnitude(fft_inputbuf_real, fft_outputbuf_real);
+  for (int i = 0; i < FFT_HALF_LENGTH; i++) {
+    sprintf(ch_buffer, "cfft_out %d=%f\r\n", i, fft_outputbuf_real[i]);
+    printf("%s", ch_buffer);
+  }
+}
+
+float power_calc_test(const float *voltage, const float *current, int length,
+                      bool input_unit) {
+  float power_sum = 0.0;
+  // 根据输入单位确定转换因子
+  float conversion_factor = input_unit ? 1.0 : 0.001;
+  for (int i = 0; i < length; i++) {
+    float voltage_in_volts = voltage[i] * conversion_factor;
+    float current_in_amps = current[i] * conversion_factor;
+    float power = voltage_in_volts * current_in_amps;
+    power_sum += power;
+  }
+  return power_sum / length;
+}
+
+float calcRMS(const float *voltage, int length, bool input_unit) {
+  float sum_of_squares = 0.0;
+  // 根据输入单位确定转换因子
+  float conversion_factor = input_unit ? 1.0 : 0.001;
+  // char test_buf[20];
+  for (int i = 0; i < length; i++) {
+    float voltage_in_volts = voltage[i] * conversion_factor;
+    // sprintf(test_buf, "%f", voltage[i]);
+    // printf("vol=%s\r\n", test_buf);
+    sum_of_squares += voltage_in_volts * voltage_in_volts;
+    // sprintf(test_buf, "%f", sum_of_squares);
+    // printf("sum=%s\r\n", test_buf);
+  }
+  return sqrt(sum_of_squares / length);
 }
 
 float calculateTHD(uint32_t fft_int[]) {
